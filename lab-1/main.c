@@ -66,7 +66,7 @@ uint32_t debouncer = 0;
 HAL_Init(); // Reset of all peripherals, init the Flash and Systick
 SystemClock_Config(); //Configure the system clock
 /* This example uses HAL library calls to control
-the GPIOC peripheral. You’ll be redoing this code
+the GPIOC peripheral. Youâ€™ll be redoing this code
 with hardware register access. */
 RCC->AHBENR |= (1 << 19) | (1 << 17); // enable RCC clock for GPIOC and GPIOA
 GPIOA->MODER &= ~(1 << 0) & ~(1 << 1); // set GPIOA pin 0 to input
