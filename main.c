@@ -61,29 +61,51 @@ void SystemClock_Config(void);
   * @retval int
   */
 int main(void) {
+int redLedOn = 1; // flag to check which state the program is in. Value is 1 when the red LED is lit, and 0 when it is not
+uint32_t debouncer = 0;
 HAL_Init(); // Reset of all peripherals, init the Flash and Systick
 SystemClock_Config(); //Configure the system clock
 /* This example uses HAL library calls to control
 the GPIOC peripheral. You’ll be redoing this code
 with hardware register access. */
-//__HAL_RCC_GPIOC_CLK_ENABLE(); // Enable the GPIOC clock in the RCC
-RCC->AHBENR |= (1 << 19); // enable RCC clock for GPIOC
-GPIOC->MODER |= (1 << 12); // set red LED (PC8) to output
-GPIOC->MODER |= (1 << 14); // set blue LED (PC9) to output
-GPIOC->OTYPER &= ~(1 << 6) & ~(1 << 7); // set to push-pull output
-GPIOC->OSPEEDR &= ~(1 << 12) & ~(1 << 14); // set to low speed
-GPIOC->PUPDR &= ~(1 << 12) & ~(1 << 13) & ~(1 << 14) & ~(1 << 15); // no pull-up/pull-down
+RCC->AHBENR |= (1 << 19) | (1 << 17); // enable RCC clock for GPIOC and GPIOA
+GPIOA->MODER &= ~(1 << 0) & ~(1 << 1); // set GPIOA pin 0 to input
+GPIOC->MODER |= (1 << 12); // set red LED (PC6) to output
+GPIOC->MODER |= (1 << 14); // set blue LED (PC7) to output
+GPIOC->OTYPER &= ~(1 << 6) & ~(1 << 7); // set LEDs to push-pull output
+GPIOA->OSPEEDR &= ~(1 << 0) & ~(1 << 1); // set switch to low speed
+GPIOC->OSPEEDR &= ~(1 << 12) & ~(1 << 14); // set LEDs to low speed
+GPIOA->PUPDR |= (1 << 1); // set switch to pull-down resistor
+GPIOA->PUPDR &= ~(1 << 0);
+GPIOC->PUPDR &= ~(1 << 12) & ~(1 << 13) & ~(1 << 14) & ~(1 << 15); // no pull-up/pull-down on LEDs
 // Set up a configuration struct to pass to the initialization function
 GPIOC->ODR |= (1 << 6); // set red LED on
 GPIOC->ODR &= ~(1 << 7); // turn off blue LED
 while (1) {
-// Toggle the output state of both PC8 and PC9
-HAL_Delay(200); // Delay 200ms
-GPIOC->ODR |= (1 << 7); // turn on blue LED
-GPIOC->ODR &= ~(1 << 6); // turn off red LED
-HAL_Delay(200);
-GPIOC->ODR |= (1 << 6); // turn on red LED
-GPIOC->ODR &= ~(1 << 7); // turn off blue LED
+HAL_Delay(5); // wait 5 ms for debouncer
+debouncer = (debouncer << 1); // shift debouncer bits
+// Toggle the output state of both PC8 and PC9 on switch input
+if(GPIOA->IDR & 0x01) { // if port A bit 0 is high (button pressed)
+	debouncer |= 0x01; // set lowest bit of debouncer
+}
+if (debouncer == 0xFFFFFFFF) {
+// This code triggers repeatedly when button is steady high!
+}
+if (debouncer == 0x00000000) {
+// This code triggers repeatedly when button is steady low!
+}
+if (debouncer == 0x7FFFFFFF) { // trigger only once on high press
+	if(redLedOn == 1) { // if red LED is on when button is pressed
+		GPIOC->ODR |= (1 << 7); // turn on blue LED
+		GPIOC->ODR &= ~(1 << 6); // turn off red LED
+		redLedOn = 0; // change flag
+	}
+	else { // if red LED is off when button is pressed
+		GPIOC->ODR |= (1 << 6); // turn on red LED
+		GPIOC->ODR &= ~(1 << 7); // turn off blue LED
+		redLedOn = 1; // change flag
+	}
+}
 }
 }
 
