@@ -57,7 +57,7 @@ void SystemClock_Config(void);
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
+  * @brief  The application entry point. This function is for PART TWO of Lab 1
   * @retval int
   */
 int main(void) {
@@ -66,7 +66,7 @@ uint32_t debouncer = 0;
 HAL_Init(); // Reset of all peripherals, init the Flash and Systick
 SystemClock_Config(); //Configure the system clock
 /* This example uses HAL library calls to control
-the GPIOC peripheral. You’ll be redoing this code
+the GPIOC peripheral. You�ll be redoing this code
 with hardware register access. */
 RCC->AHBENR |= (1 << 19) | (1 << 17); // enable RCC clock for GPIOC and GPIOA
 GPIOA->MODER &= ~(1 << 0) & ~(1 << 1); // set GPIOA pin 0 to input
@@ -106,6 +106,34 @@ if (debouncer == 0x7FFFFFFF) { // trigger only once on high press
 		redLedOn = 1; // change flag
 	}
 }
+}
+}
+
+// This function is for PART ONE of Lab 1
+int main_pt1(void) {
+HAL_Init(); // Reset of all peripherals, init the Flash and Systick
+SystemClock_Config(); //Configure the system clock
+/* This example uses HAL library calls to control
+the GPIOC peripheral. You’ll be redoing this code
+with hardware register access. */
+//__HAL_RCC_GPIOC_CLK_ENABLE(); // Enable the GPIOC clock in the RCC
+RCC->AHBENR |= (1 << 19); // enable RCC clock for GPIOC
+GPIOC->MODER |= (1 << 12); // set red LED (PC8) to output
+GPIOC->MODER |= (1 << 14); // set blue LED (PC9) to output
+GPIOC->OTYPER &= ~(1 << 6) & ~(1 << 7); // set to push-pull output
+GPIOC->OSPEEDR &= ~(1 << 12) & ~(1 << 14); // set to low speed
+GPIOC->PUPDR &= ~(1 << 12) & ~(1 << 13) & ~(1 << 14) & ~(1 << 15); // no pull-up/pull-down
+// Set up a configuration struct to pass to the initialization function
+GPIOC->ODR |= (1 << 6); // set red LED on
+GPIOC->ODR &= ~(1 << 7); // turn off blue LED
+while (1) {
+// Toggle the output state of both PC8 and PC9
+HAL_Delay(200); // Delay 200ms
+GPIOC->ODR |= (1 << 7); // turn on blue LED
+GPIOC->ODR &= ~(1 << 6); // turn off red LED
+HAL_Delay(200);
+GPIOC->ODR |= (1 << 6); // turn on red LED
+GPIOC->ODR &= ~(1 << 7); // turn off blue LED
 }
 }
 
