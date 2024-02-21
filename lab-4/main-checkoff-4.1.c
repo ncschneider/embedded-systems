@@ -58,6 +58,7 @@ void SystemClock_Config(void);
 
 void sendChar(char text);
 char readChar();
+void sendString(char* str);
 
 /**
   * @brief  The application entry point.
@@ -137,19 +138,13 @@ int main(void)
 			GPIOC->ODR &= ~(1 << 7) & ~(1 << 8) & ~(1 << 6);
 		}
 		else {
-			sendChar('E');
-			sendChar('R');
-			sendChar('R');
-			sendChar('O');
-			sendChar('R');
-			sendChar('\n');
-			sendChar('\r');
+			sendString("ERROR\n\r");
 			GPIOC->ODR &= ~(1 << 6) & ~(1 << 7) & ~(1 << 8) & ~(1 << 9);
-
 		}
   }
 }
 
+// read one character
 char readChar() {
 	while(!(USART3->ISR & (1 << 5))) {} // wait for received data to be ready
 	char text = USART3->RDR & 0xFF; // store 8 bits into character variable
@@ -160,6 +155,14 @@ char readChar() {
 void sendChar(char text) {
 	while(!(USART3->ISR & (1 << 7))) {} // wait for transmit register to report empty
 	USART3->TDR = text; // transmit character
+}
+
+void sendString(char* str) {
+	uint32_t i = 0;
+	while(str[i] != '\0') {
+		sendChar(str[i]);
+		i++;
+	}
 }
 
 /**
