@@ -120,24 +120,25 @@ int main(void)
 	
   while (1)
   {
-		received = readChar();
-		if(received == 'r') {
+		received = readChar(); // read character from keyboard
+		// check for color command, else output error message
+		if(received == 'r') { // turn on red, turn off everything else
 			GPIOC->ODR |= (1 << 6);
 			GPIOC->ODR &= ~(1 << 7) & ~(1 << 8) & ~(1 << 9);
 		}
-		else if(received == 'b') {
+		else if(received == 'b') { // turn on blue, turn off everything else
 			GPIOC->ODR |= (1 << 7);
 			GPIOC->ODR &= ~(1 << 6) & ~(1 << 8) & ~(1 << 9);
 		}
-		else if(received == 'o') {
+		else if(received == 'o') { // turn on orange, turn off everything else
 			GPIOC->ODR |= (1 << 8);
 			GPIOC->ODR &= ~(1 << 7) & ~(1 << 6) & ~(1 << 9);
 		}
-		else if(received == 'g') {
+		else if(received == 'g') { // turn on green, turn off everything else
 			GPIOC->ODR |= (1 << 9);
 			GPIOC->ODR &= ~(1 << 7) & ~(1 << 8) & ~(1 << 6);
 		}
-		else {
+		else { // send error message and turn off all LEDs
 			sendString("ERROR\n\r");
 			GPIOC->ODR &= ~(1 << 6) & ~(1 << 7) & ~(1 << 8) & ~(1 << 9);
 		}
