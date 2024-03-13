@@ -20,16 +20,17 @@
 #include "main.h"
 
 /* Private define ------------------------------------------------------------*/
-#define GYRO_ADDR 0b1101011
+#define GYRO_ADDR 0b1101001
+#define WHO_AM_I 0x0F
 
 /* Private variables ---------------------------------------------------------*/
-
+uint8_t NUM_BYTES = 1;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void i2c_init(uint8_t addr, uint8_t nBytes, uint8_t rw);
+void i2c_init(uint8_t addr, uint8_t nBytes);
 void i2c_write(uint8_t data);
-uint8_t i2c_read(void);
+uint8_t i2c_read(uint8_t addr);
 
 /**
   * @brief  The application entry point.
@@ -40,10 +41,40 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
 	
+	uint8_t slaveData = 0x00;
+	
 	// initialize clocks
 	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
 	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
 	RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+	
+	// initialize green LED (PC9)
+	GPIOC->MODER |= (1 << 18); // set green LED (PC9) to output
+	GPIOC->MODER &= ~(1 << 19);
+	GPIOC->OTYPER &= ~(1 << 9);
+	GPIOC->OSPEEDR &= ~(1 << 18);
+	GPIOC->PUPDR &= ~(1 << 18) & ~(1 << 19);
+	
+	// initialize orange LED (PC8)
+	GPIOC->MODER |= (1 << 16);
+	GPIOC->MODER &= ~(1 << 17);
+	GPIOC->OTYPER &= ~(1 << 8);
+	GPIOC->OSPEEDR &= ~(1 << 16);
+	GPIOC->PUPDR &= ~(1 << 16) & ~(1 << 17);
+	
+	// initialize Blue LED (PC7)
+	GPIOC->MODER |= (1 << 14);
+	GPIOC->MODER &= ~(1 << 15);
+	GPIOC->OTYPER &= ~(1 << 7); // push-pull output
+	GPIOC->OSPEEDR &= ~(1 << 14); // low speed
+	GPIOC->PUPDR &= ~(1 << 14) & ~(1 << 15); // no pull-up/pull-down
+	
+	// initialize Red LED (PC6)
+	GPIOC->MODER |= (1 << 12);
+	GPIOC->MODER &= ~(1 << 13);
+	GPIOC->OTYPER &= ~(1 << 6); // push-pull output
+	GPIOC->OSPEEDR &= ~(1 << 12); // low speed
+	GPIOC->PUPDR &= ~(1 << 12) & ~(1 << 13); // no pull-up/pull-down
 	
 	// initialize digital outputs PB14 and PC0
 	GPIOB->MODER |= (1 << 28);
@@ -76,26 +107,55 @@ int main(void)
 	
   while (1)
   {
-		
+		i2c_init(GYRO_ADDR, NUM_BYTES);
+		slaveData = i2c_read(WHO_AM_I);
+		if(slaveData == 0xD3) {
+			GPIOC->ODR |= (1 << 9); // turn on green LED if data matches 
+		}
+		while(1) {}
   }
 }
 
-void i2c_init(uint8_t addr, uint8_t nBytes, uint8_t rw) {
+void i2c_init(uint8_t addr, uint8_t nBytes) {
 	I2C2->CR2 &= ~(0x3FF << 0) & ~(0xFF << 16); // clear address and number of bytes
 	I2C2->CR2 |= (nBytes << 16) | (addr << 1); // set number of bytes in transaction and slave address (shifted 1 for 7-bit addresses)
-	if(rw == 0) { // set or clear read/write bit depending on desired operation (0 = write, 1 = read)
-		I2C2->CR2 &= ~(1 << 10);
-	}
-	else if(rw == 1) {
-		I2C2->CR2 |= (1 << 10);
-	}
 }
 
+// write one byte to the slave device
 void i2c_write(uint8_t data) {
-	I2C1->CR2 |= (1 << 13); // start
+	I2C2->CR2 &= ~(1 << 10); // R/W bit set to 0 (write)
+	I2C2->CR2 |= (1 << 13); // start
+	while(!((I2C2->ISR >> 1) & 1)) { // wait for TXIS to be set
+		GPIOC->ODR |= (1 << 8); // orange on
+		if(I2C2->ISR & (1 << 4)) { // check for NACK
+			GPIOC->ODR |= (1 << 6); // red on
+			while(1) {}
+		}
+	}
+	I2C2->TXDR = data;
+	GPIOC->ODR &= ~(1 << 6) & ~(1 << 8); // turn off LEDs
+	while(!(I2C2->ISR & (1 << 6))) {} // wait for transaction to complete
 }
 
-uint8_t i2c_read(void);
+// read one byte from the slave device
+uint8_t i2c_read(uint8_t addr) {
+	uint8_t data;
+	i2c_write(addr);
+	i2c_init(GYRO_ADDR, NUM_BYTES);
+	I2C2->CR2 |= (1 << 10); // set R/W bit to 1 (read)
+	I2C2->CR2 |= (1 << 13); // start
+	while(!((I2C2->ISR >> 2) & 1)) { // wait for RXNE to be set
+		GPIOC->ODR |= (1 << 7); // blue on
+		if(I2C2->ISR & (1 << 4)) { // check for NACK
+			GPIOC->ODR |= (1 << 6); // red on
+		}
+	}
+	while(!(I2C2->ISR & (1 << 6))) {} // wait for transaction to complete
+	data = I2C2->RXDR; // collect byte
+	I2C2->CR2 |= (1 << 14); // stop
+	GPIOC->ODR &= ~(1 << 6) & ~(1 << 7); // turn off LEDs
+	return data;
+}
 
 /**
   * @brief System Clock Configuration
