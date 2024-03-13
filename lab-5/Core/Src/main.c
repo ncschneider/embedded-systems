@@ -72,6 +72,21 @@ int main(void)
 	// initialize I2C1
 	// SDA: GPIOB 7 -- AF1
 	// SCL: GPIOB 6 -- AF1
+	GPIOB->MODER |= (1 << 13) | (1 << 15);
+	GPIOB->OTYPER |= (1 << 6) | (1 << 7);
+	GPIOB->AFR[0] |= (1 << 24) | (1 << 28);
+	
+	/* Configure I2C1 timing
+	 * Prescaler = 1
+	 * SCLDEL = 0x4
+	 * SDADEL = 0x2
+	 * SCLH = 0x0F
+	 * SCLL = 0x13
+	 */
+	I2C1->TIMINGR |= 0x10420F13;
+	
+	// enable I2C1
+	I2C1->CR1 |= (1 << 0);
 	
 
   while (1)
