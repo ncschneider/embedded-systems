@@ -25,6 +25,9 @@
 #define THRESHOLD_4 255
 
 uint8_t adcVal = 0;
+uint8_t counter = 0;
+const uint8_t sine_table[32] = {127,151,175,197,216,232,244,251,254,251,244,
+232,216,197,175,151,127,102,78,56,37,21,9,2,0,2,9,21,37,56,78,102};
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -41,7 +44,9 @@ int main(void)
 	
 	// initialize clocks
 	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
+	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
 	
 	// initialize green LED (PC9)
 	GPIOC->MODER |= (1 << 18); // set green LED (PC9) to output
@@ -90,12 +95,28 @@ int main(void)
 	// enable ADC and wait for confirmation that it is ready
 	ADC1->CR |= (1 << 0);
 	while((ADC1->ISR & (1 << 0)) == 0) {}
+		
+	// set PA4 to analog mode (DAC1)
+	GPIOA->MODER |= (1 << 8) | (1 << 9);
+		
+	// set DAC channel 1 to software trigger
+	DAC1->SWTRIGR |= (1 << 0);
+		
+	// enable DAC channel 1
+	DAC1->CR |= (1 << 0);
 	
 	// start ADC
 	ADC1->CR |= (1 << 2);
 
   while (1)
   {
+		DAC1->DHR8R1 &= 0x00;
+		DAC1->DHR8R1 |= sine_table[counter];
+		counter++;
+		if(counter == 32) {
+			counter = 0;
+		}
+		
 		if(ADC1->ISR & (1 << 2)) {
 			adcVal = ADC1->DR; // store rightmost 8 bits
 		}
@@ -118,6 +139,7 @@ int main(void)
 		else {
 			GPIOC->ODR &= ~(1 << 6) & ~(1 << 7) & ~(1 << 8) & ~(1 << 9);
 		}
+		HAL_Delay(1);
   }
 }
 
