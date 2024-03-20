@@ -19,9 +19,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+#define THRESHOLD_1 63
+#define THRESHOLD_2 127
+#define THRESHOLD_3 191
+#define THRESHOLD_4 255
+
+uint8_t adcVal = 0;
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-
 
 /**
   * @brief  The application entry point.
@@ -31,10 +37,87 @@ int main(void)
 {
   HAL_Init();
   SystemClock_Config();
+	
+	
+	// initialize clocks
+	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
+	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
+	
+	// initialize green LED (PC9)
+	GPIOC->MODER |= (1 << 18); // set green LED (PC9) to output
+	GPIOC->MODER &= ~(1 << 19);
+	GPIOC->OTYPER &= ~(1 << 9);
+	GPIOC->OSPEEDR &= ~(1 << 18);
+	GPIOC->PUPDR &= ~(1 << 18) & ~(1 << 19);
+	
+	// initialize orange LED (PC8)
+	GPIOC->MODER |= (1 << 16);
+	GPIOC->MODER &= ~(1 << 17);
+	GPIOC->OTYPER &= ~(1 << 8);
+	GPIOC->OSPEEDR &= ~(1 << 16);
+	GPIOC->PUPDR &= ~(1 << 16) & ~(1 << 17);
+	
+	// initialize Blue LED (PC7)
+	GPIOC->MODER |= (1 << 14);
+	GPIOC->MODER &= ~(1 << 15);
+	GPIOC->OTYPER &= ~(1 << 7); // push-pull output
+	GPIOC->OSPEEDR &= ~(1 << 14); // low speed
+	GPIOC->PUPDR &= ~(1 << 14) & ~(1 << 15); // no pull-up/pull-down
+	
+	// initialize Red LED (PC6)
+	GPIOC->MODER |= (1 << 12);
+	GPIOC->MODER &= ~(1 << 13);
+	GPIOC->OTYPER &= ~(1 << 6); // push-pull output
+	GPIOC->OSPEEDR &= ~(1 << 12); // low speed
+	GPIOC->PUPDR &= ~(1 << 12) & ~(1 << 13); // no pull-up/pull-down
+	
+	// set PC0 to analog mode (ADC_10)
+	GPIOC->MODER |= (1 << 0) | (1 << 1);
+	
+	// setup ADC: 8bit resolution, continuous conversion, software trigger
+	ADC1->CFGR1 |= (1 << 4); // resolution
+	ADC1->CFGR1 &= ~(1 << 3); // resolution
+	ADC1->CFGR1 |= (1 << 13); // continuous
+	ADC1->CFGR1 &= ~(1 << 10) & ~(1 << 11); // hardware trigger disabled
+	
+	// select ADC channel 10 for conversion
+	ADC1->CHSELR |= (1 << 10);
+	
+	// calibrate ADC and wait for calibration to complete
+	ADC1->CR |= (1 << 31);
+	while(ADC1->CR & (1 << 31)) {}
+		
+	// enable ADC and wait for confirmation that it is ready
+	ADC1->CR |= (1 << 0);
+	while((ADC1->ISR & (1 << 0)) == 0) {}
+	
+	// start ADC
+	ADC1->CR |= (1 << 2);
 
   while (1)
   {
-
+		if(ADC1->ISR & (1 << 2)) {
+			adcVal = ADC1->DR; // store rightmost 8 bits
+		}
+		
+		if(adcVal >= THRESHOLD_4) {
+			GPIOC->ODR |= (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9);
+		}
+		else if(adcVal >= THRESHOLD_3) {
+			GPIOC->ODR |= (1 << 6) | (1 << 7) | (1 << 9);
+			GPIOC->ODR &= ~(1 << 8);
+		}
+		else if(adcVal >= THRESHOLD_2) {
+			GPIOC->ODR |= (1 << 6) | (1 << 9);
+			GPIOC->ODR &= ~(1 << 8) & ~(1 << 7);
+		}
+		else if(adcVal >= THRESHOLD_1) {
+			GPIOC->ODR |= (1 << 6);
+			GPIOC->ODR &= ~(1 << 7) & ~(1 << 8) & ~(1 << 9);
+		}
+		else {
+			GPIOC->ODR &= ~(1 << 6) & ~(1 << 7) & ~(1 << 8) & ~(1 << 9);
+		}
   }
 }
 
